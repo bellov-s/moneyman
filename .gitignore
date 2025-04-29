@@ -3,6 +3,7 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env_backup
 
 local_config/
 dst/
