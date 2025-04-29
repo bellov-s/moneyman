@@ -4,7 +4,7 @@ import type { TransactionRow } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 import { v4 as uuidv4 } from 'uuid';
 
-const currentDate = format(Date.now(), "yyyy-MM-dd");
+const currentDate = format(Date.now(), "yyyy-MM-dd HH:mm:ss");
 const { TRANSACTION_HASH_TYPE } = process.env;
 
 export const TableHeaders = [
