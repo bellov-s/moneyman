@@ -9,3 +9,4 @@ local_config/
 dst/
 output
 src/utils/*.json
+Commands.txt
