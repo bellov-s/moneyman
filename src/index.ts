@@ -1,5 +1,5 @@
 import { scrapeAccounts } from "./scraper/index.js";
-import { scraperConfig } from "./config.js";
+import { getScraperConfig } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import { RunnerHooks } from "./types.js";
@@ -7,6 +7,14 @@ import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { reportRunMetadata } from "./runnerMetadata.js";
+
+(async () => {
+  const scraperConfig = await getScraperConfig(); // Получаем конфигурацию асинхронно
+  //console.log('scraperConfig:', scraperConfig);
+
+  // Ты можешь использовать scraperConfig дальше в своем коде
+  await scrapeAccounts(scraperConfig);
+})();
 
 const logger = createLogger("main");
 
@@ -30,6 +38,9 @@ async function runScraper(hooks: RunnerHooks) {
     await hooks.onBeforeStart();
 
     logger("Starting to scrape");
+
+    const scraperConfig = await getScraperConfig(); // <-- Тут получаем конфиг
+
     const results = await scrapeAccounts(
       scraperConfig,
       async (status, totalTime) => {
@@ -41,6 +52,7 @@ async function runScraper(hooks: RunnerHooks) {
         return hooks.onError(e, caller);
       },
     );
+
     logger("Scraping ended");
     await Promise.all([
       hooks.onResultsReady(results),

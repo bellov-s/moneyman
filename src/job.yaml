@@ -1,0 +1,43 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: fam-budget-job
+spec:
+  template:
+    spec:
+      containers:
+      - image: europe-west1-docker.pkg.dev/fam-budget-457819/cloud-run-source-deploy/fam-budget:latest
+        env:
+        - name: TELEGRAM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: TELEGRAM_API_KEY
+              key: latest
+        - name: TELEGRAM_CHAT_ID
+          valueFrom:
+            secretKeyRef:
+              name: TELEGRAM_CHAT_ID
+              key: latest
+        - name: FIREBASE_SERVICE_ACCOUNT_JSON
+          valueFrom:
+            secretKeyRef:
+              name: FIREBASE_SERVICE_ACCOUNT_JSON
+              key: latest
+        - name: ACCOUNTS_JSON
+          valueFrom:
+            secretKeyRef:
+              name: ACCOUNTS_JSON
+              key: latest
+        - name: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+              key: latest
+        - name: GOOGLE_SERVICE_ACCOUNT_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: GOOGLE_SERVICE_ACCOUNT_EMAIL
+              key: latest
+      serviceAccountName: fam-budget-cloudrun-sa@fam-budget-457819.iam.gserviceaccount.com
+      timeoutSeconds: 600
+      maxRetries: 3

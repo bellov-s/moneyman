@@ -1,61 +1,76 @@
-import "dotenv/config";
+// import 'dotenv/config';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { subDays } from "date-fns";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 export const systemName = "moneyman";
+
+const client = new SecretManagerServiceClient();
+
+async function getSecret(secretName: string): Promise<string> {
+  const [version] = await client.accessSecretVersion({
+    name: `projects/fam-budget-457819/secrets/${secretName}/versions/latest`,
+  });
+
+  if (!version.payload || !version.payload.data) {
+    throw new Error(`Secret ${secretName} has no payload`);
+  }
+
+  return version.payload.data.toString();
+}
+
+async function loadSecrets() {
+  const accountsJson = await getSecret('ACCOUNTS_JSON');
+  //console.log('accountsJson:', accountsJson);
+  const googleServiceAccountKey = await getSecret('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
+  const firebaseServiceAccountJson = await getSecret('FIREBASE_SERVICE_ACCOUNT_JSON');
+
+  return {
+    ACCOUNTS_JSON: accountsJson,
+    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: googleServiceAccountKey,
+    FIREBASE_SERVICE_ACCOUNT_JSON: firebaseServiceAccountJson,
+  };
+}
+
 const logger = createLogger("config");
 
 logger("Parsing config");
 logToPublicLog("Parsing config");
 
-const {
-  DAYS_BACK,
-  ACCOUNTS_TO_SCRAPE = "",
-  FUTURE_MONTHS = "",
-  MAX_PARALLEL_SCRAPERS = "",
-} = process.env;
+async function getScraperConfig(): Promise<ScraperConfig> {
+  const secrets = await loadSecrets();
+  //console.log('secrets:', secrets);
 
-logger("Env", {
-  systemName,
-  systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-});
+  logger("Env", {
+    systemName: "moneyman",
+    systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
 
-logger("env vars", {
-  DAYS_BACK,
-  ACCOUNTS_TO_SCRAPE,
-  FUTURE_MONTHS,
-  MAX_PARALLEL_SCRAPERS,
-});
+  function getAccounts(): Array<AccountConfig> {
+    function parseAccounts(accountsJson?: string): Array<AccountConfig> {
+      try {
+        const parsed = JSON.parse(accountsJson!);
+        if (Array.isArray(parsed)) {
+          return parsed as Array<AccountConfig>;
+        }
+      } catch {}
 
-function getAccounts(): Array<AccountConfig> {
-  function parseAccounts(accountsJson?: string): Array<AccountConfig> {
-    try {
-      const parsed = JSON.parse(accountsJson!);
-      if (Array.isArray(parsed)) {
-        // TODO: Add schema validations?
-        return parsed as Array<AccountConfig>;
-      }
-    } catch {}
+      throw new TypeError("ACCOUNTS_JSON must be a valid array");
+    }
 
-    throw new TypeError("ACCOUNTS_JSON must be a valid array");
+    //console.log('accountsJson:', secrets.ACCOUNTS_JSON);
+    return parseAccounts(secrets.ACCOUNTS_JSON);
   }
 
-  const allAccounts = parseAccounts(process.env.ACCOUNTS_JSON);
-  const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
-    .filter(Boolean)
-    .map((a) => a.trim());
-
-  return accountsToScrape.length == 0
-    ? allAccounts
-    : allAccounts.filter((account) =>
-        accountsToScrape.includes(account.companyId),
-      );
+  const scraperConfig: ScraperConfig = {
+    accounts: getAccounts(),
+    startDate: subDays(Date.now(), Number(process.env.DAYS_BACK || 10)),
+    parallelScrapers: Number(process.env.MAX_PARALLEL_SCRAPERS) || 1,
+    futureMonthsToScrape: parseInt(process.env.FUTURE_MONTHS || "0", 10),
+  };
+  //console.log('scraperConfig:', scraperConfig);
+  return scraperConfig;
 }
 
-export const scraperConfig: ScraperConfig = {
-  accounts: getAccounts(),
-  startDate: subDays(Date.now(), Number(DAYS_BACK || 10)),
-  parallelScrapers: Number(MAX_PARALLEL_SCRAPERS) || 1,
-  futureMonthsToScrape: parseInt(FUTURE_MONTHS, 10),
-};
+export { getScraperConfig };

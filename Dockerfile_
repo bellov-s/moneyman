@@ -1,19 +1,14 @@
-FROM ghcr.io/puppeteer/puppeteer:latest
+FROM ghcr.io/puppeteer/puppeteer
 
 WORKDIR /app
 
 COPY tsconfig.json .
 COPY package.json .
 COPY package-lock.json .
-COPY jest.scraper-access.config.js .
 COPY ./patches ./patches
 RUN npm ci
 
 COPY ./src ./src
-
-RUN npx puppeteer browsers install chrome
-
 RUN npm run build
 
 CMD ["npm", "run", "start"]
-
