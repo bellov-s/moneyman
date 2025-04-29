@@ -9,5 +9,4 @@ local_config/
 dst/
 output
 
-src\utils\firebase-service-account.json
-src\utils\fam-budget-457819-8d40c9c4adb4.json
+src\utils\*.json
