@@ -12,7 +12,6 @@ import { reportRunMetadata } from "./runnerMetadata.js";
   const scraperConfig = await getScraperConfig(); // Получаем конфигурацию асинхронно
   //console.log('scraperConfig:', scraperConfig);
 
-  // Ты можешь использовать scraperConfig дальше в своем коде
   await scrapeAccounts(scraperConfig);
 })();
 

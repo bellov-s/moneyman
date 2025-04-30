@@ -21,12 +21,12 @@ import { Timer } from "../../utils/Timer.js";
 const baseLogger = createLogger("storage");
 
 export const storages = [
-  new LocalJsonStorage(),
-  new GoogleSheetsStorage(),
-  new AzureDataExplorerStorage(),
-  new YNABStorage(),
-  new BuxferStorage(),
-  new WebPostStorage(),
+//new LocalJsonStorage(),
+//new GoogleSheetsStorage(),
+//new AzureDataExplorerStorage(),
+//new YNABStorage(),
+// new BuxferStorage(),
+//new WebPostStorage(),
   new FirestoreStorage(),
 ].filter((s) => s.canSave());
 
