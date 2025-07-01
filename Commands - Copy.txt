@@ -1,0 +1,90 @@
+
+Manual
+
+docker build -t fam-budget .
+gcloud auth configure-docker europe-west1-docker.pkg.dev
+docker tag fam-budget europe-west1-docker.pkg.dev/fam-budget-457819/cloud-run-source-deploy/fam-budget:latest
+docker push europe-west1-docker.pkg.dev/fam-budget-457819/cloud-run-source-deploy/fam-budget:latest
+
+renew job
+gcloud run jobs update fam-budget-job --region=europe-west1 --image=europe-west1-docker.pkg.dev/fam-budget-457819/cloud-run-source-deploy/fam-budget:latest
+
+
+Run
+gcloud run jobs execute fam-budget-job --region=europe-west1
+
+Logs
+gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=fam-budget-job" --limit=50 --region=europe-west1 --format="value(textPayload)"
+
+
+
+docker build -t gcr.io/fam-budget-457819/fam-budget .
+
+docker push gcr.io/fam-budget-457819/fam-budget
+
+gcloud secrets create TELEGRAM_API_KEY --replication-policy="automatic" --data-file=path/to/telegram_api_key.txt
+gcloud secrets create GOOGLE_SERVICE_ACCOUNT_EMAIL --replication-policy="automatic" --data-file=path/to/google_service_account_email.txt
+gcloud secrets create GOOGLE_SHEET_ID --replication-policy="automatic" --data-file=path/to/google_sheet_id.txt
+
+
+fam-budget-457819
+
+gcloud builds submit --tag gcr.io/fam-budget-457819/fam-budget
+
+gcloud run deploy fam-budget --source . --region europe-west1 --platform managed --allow-unauthenticated --service-account fam-budget-cloudrun-sa@fam-budget-457819.iam.gserviceaccount.com
+
+gcloud iam service-accounts create fam-budget-cloudrun-sa --description="Service Account for Cloud Run"   --display-name="Cloud Run Service Account"
+
+gcloud iam service-accounts add-iam-policy-binding fam-budget-cloudrun-sa@fam-budget.iam.gserviceaccount.com --member="user:bellov@gmail.com" --role="roles/iam.serviceAccountUser"
+
+gcloud iam service-accounts create fam-budget-cloudrun-sa-v2  --description="Service Account for Cloud Run"   --display-name="Cloud Run Service Account v2"   --project=fam-budget-457819
+
+gcloud projects add-iam-policy-binding fam-budget-457819  --member="serviceAccount:fam-budget-cloudrun-sa-v2@fam-budget.iam.gserviceaccount.com"  --role="roles/run.admin"
+
+gcloud run jobs create fam-budget-scraper-job  --image gcr.io/fam-budget-457819/ cloud-run-source-deploy/fam-budget-scraper   --region europe-west1  --service-account fam-budget-cloudrun-sa@fam-budget-457819.iam.gserviceaccount.com
+
+gcloud run jobs create fam-budget-job  --image europe-west1-docker.pkg.dev/fam-budget-457819/cloud-run-source-deploy/fam-budget:latest --region europe-west1 --service-account fam-budget-cloudrun-sa@fam-budget-457819.iam.gserviceaccount.com
+
+
+
+
+Update:
+docker build -t fam-budget .
+
+Settings
+gcloud run jobs update fam-budget-job --region=europe-west1 --memory=1Gi  --cpu=1 --task-timeout=180s
+
+Serverless VPC connector
+gcloud compute networks vpc-access connectors create fam-budget-connector --region=europe-west1  --network=default  --range=10.8.0.0/28
+
+NAT
+gcloud compute routers create fam-budget-nat-router  --region=europe-west1 --network=default
+gcloud compute routers nats create fam-budget-nat-config --router=fam-budget-nat-router --region=europe-west1 --nat-all-subnet-ip-ranges --nat-external-ip-pool=fam-budget-ip
+
+Check
+gcloud run jobs describe fam-budget-job  --region=europe-west1
+
+gcloud run jobs update fam-budget-job --region=europe-west1 --vpc-connector=fam-budget-connector --vpc-egress=all-traffic
+
+git remote add origin https://github.com/bellov-s/moneyman.git
+
+
+git clone . cleaned-gcp
+cd cleaned-gcp
+
+
+git remote add origin https://github.com/bellov-s/israeli-bank-scrapers.git
+git push origin firebase
+
+ python -m git_filter_repo --force --path src/utils/fam-budget-457819-8d40c9c4adb4.json --invert-paths
+ython -m git_filter_repo --force --path src/utils/firebase-service-account.json --invert-paths 
+
+
+git rm --cached src/utils/firebase-service-account.json
+
+git log --all -p | grep "PRIVATE KEY"
+
+git remote set-url --add --push origin https://github.com/bellov-s/moneyman.git
+
+
+
