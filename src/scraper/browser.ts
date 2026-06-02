@@ -9,7 +9,14 @@ import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
 
-export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
+export const browserArgs = [
+  "--disable-dev-shm-usage",
+  "--no-sandbox",
+  "--disable-blink-features=AutomationControlled",
+  "--disable-features=IsolateOrigins,site-per-process",
+  "--disable-infobars",
+  "--window-size=1920,1080",
+];
 export const browserExecutablePath =
   process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
 
@@ -19,6 +26,7 @@ export async function createBrowser(): Promise<Browser> {
   const options = {
     args: browserArgs,
     executablePath: browserExecutablePath,
+    headless: "shell" as const,
   } satisfies LaunchOptions;
 
   logger("Creating browser", options);
@@ -49,6 +57,19 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
       const newUA = userAgent.replace("HeadlessChrome/", "Chrome/");
       logger("Replacing user agent", { userAgent, newUA });
       await page.setUserAgent(newUA);
+
+      // Remove webdriver flag to avoid bot detection
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, "webdriver", { get: () => false });
+        // @ts-ignore
+        window.chrome = { runtime: {} };
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5],
+        });
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["he-IL", "he", "en-US", "en"],
+        });
+      });
 
       page.on("framenavigated", (frame) => {
         const url = frame.url();
