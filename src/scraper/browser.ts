@@ -3,7 +3,7 @@ import puppeteer, {
   TargetType,
   type Browser,
   type BrowserContext,
-  type PuppeteerLaunchOptions,
+  type LaunchOptions,
 } from "puppeteer";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
@@ -19,7 +19,7 @@ export async function createBrowser(): Promise<Browser> {
   const options = {
     args: browserArgs,
     executablePath: browserExecutablePath,
-  } satisfies PuppeteerLaunchOptions;
+  } satisfies LaunchOptions;
 
   logger("Creating browser", options);
   return puppeteer.launch(options);

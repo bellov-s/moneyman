@@ -10,7 +10,6 @@ import { parallelLimit } from "async";
 const logger = createLogger("scraper");
 
 export const scraperOptions: Partial<ScraperOptions> = {
-  navigationRetryCount: 3,
   viewportSize: { width: 1920, height: 1080 },
 };
 

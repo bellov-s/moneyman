@@ -5,7 +5,7 @@
   "main": "dst/index.ts",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
@@ -42,7 +42,7 @@
     "google-auth-library": "^9.15.1",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
-    "israeli-bank-scrapers": "^5.4.6",
+    "israeli-bank-scrapers": "^6.7.5",
     "telegraf": "^4.16.3",
     "ynab": "^2.9.0"
   },
