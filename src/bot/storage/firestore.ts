@@ -3,10 +3,12 @@ import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
-import { initializeApp, applicationDefault } from "firebase-admin/app";
+import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 const logger = createLogger("FirestoreStorage");
+
+const { FIREBASE_SERVICE_ACCOUNT_JSON = "" } = process.env;
 
 let appInitialized = false;
 
@@ -14,17 +16,20 @@ export class FirestoreStorage implements TransactionStorage {
   private db;
 
   constructor() {
-    if (!appInitialized) {
+    if (!appInitialized && this.canSave()) {
+      const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
       initializeApp({
-        credential: applicationDefault(),
+        credential: cert(serviceAccount),
       });
       appInitialized = true;
     }
-    this.db = getFirestore();
+    if (appInitialized) {
+      this.db = getFirestore();
+    }
   }
 
   canSave() {
-    return Boolean(this.db);
+    return Boolean(FIREBASE_SERVICE_ACCOUNT_JSON);
   }
 
   async saveTransactions(

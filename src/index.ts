@@ -8,14 +8,6 @@ import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { reportRunMetadata } from "./runnerMetadata.js";
 
-(async () => {
-  const scraperConfig = await getScraperConfig(); // Получаем конфигурацию асинхронно
-  //console.log('scraperConfig:', scraperConfig);
-
-  // Ты можешь использовать scraperConfig дальше в своем коде
-  await scrapeAccounts(scraperConfig);
-})();
-
 const logger = createLogger("main");
 
 process.on("uncaughtException", (err, origin) => {
@@ -39,7 +31,7 @@ async function runScraper(hooks: RunnerHooks) {
 
     logger("Starting to scrape");
 
-    const scraperConfig = await getScraperConfig(); // <-- Тут получаем конфиг
+    const scraperConfig = getScraperConfig();
 
     const results = await scrapeAccounts(
       scraperConfig,
