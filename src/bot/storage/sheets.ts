@@ -104,7 +104,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       credentials: {
         client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       },
     });
 
