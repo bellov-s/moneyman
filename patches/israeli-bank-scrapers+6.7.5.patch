@@ -1,62 +1,30 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..7c7238a 100644
+index 0cd2096..24725db 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,58 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -249,6 +249,26 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +    // Click 'login with permanent password' link if SMS login page is shown
 +    try {
-+      await new Promise(r => setTimeout(r, 3000));
-+      debug(`Frames count: ${this.page.frames().length}`);
-+
-+      let clickedPasswordLogin = false;
-+
-+      for (const frame of this.page.frames()) {
-+        try {
-+          const found = await frame.evaluate(() => {
-+            const wanted = 'או כניסה עם סיסמה קבועה';
-+
-+            const elements = Array.from(document.querySelectorAll('a, button, [role="button"], span, div'));
-+
-+            const el = elements.find(el => {
-+              const text = el.textContent || '';
-+              const aria = el.getAttribute('aria-label') || '';
-+              const cls = el.getAttribute('class') || '';
-+              const ngClick = el.getAttribute('ng-click') || '';
-+              const ngBind = el.getAttribute('ng-bind') || '';
-+
-+              return (
-+                text.includes(wanted) ||
-+                aria.includes(wanted) ||
-+                cls.includes('connection-with-password-link') ||
-+                ngClick.includes('rotateView') ||
-+                ngBind.includes('SwitchToPassword')
-+              );
-+            });
-+
-+            if (el) {
-+              el.click();
-+              return true;
-+            }
-+
-+            return false;
-+          });
-+
-+          if (found) {
-+            clickedPasswordLogin = true;
-+            break;
-+          }
-+        } catch (e) {
-+          // ignore frame access errors
-+        }
-+      }
-+
-+      debug(`Clicked permanent password login: ${clickedPasswordLogin}`);
++      await this.page.waitForSelector('.connection-with-password-link', { timeout: 15000 });
++      debug('Clicking permanent password login by class');
++      await this.page.click('.connection-with-password-link');
 +      await new Promise(r => setTimeout(r, 3000));
 +    } catch (e) {
-+      debug('Error in password login switch', e);
++      debug('Permanent password login link not found by class');
++      try {
++        await this.page.waitForXPath("//*[contains(text(), 'או כניסה עם סיסמה קבועה') or contains(@aria-label, 'או כניסה עם סיסמה קבועה')]", { timeout: 15000 });
++        const [passwordLoginLink] = await this.page.$x("//*[contains(text(), 'או כניסה עם סיסמה קבועה') or contains(@aria-label, 'או כניסה עם סיסמה קבועה')]");
++        if (passwordLoginLink) {
++          debug('Clicking permanent password login by Hebrew text');
++          await passwordLoginLink.click();
++          await new Promise(r => setTimeout(r, 3000));
++        }
++      } catch (e2) {
++        debug('Permanent password login link not found by Hebrew text');
++      }
 +    }
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
