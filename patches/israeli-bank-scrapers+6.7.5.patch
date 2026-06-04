@@ -1,17 +1,36 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..d9da9a9 100644
+index 0cd2096..9cf4dc7 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,15 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -249,6 +249,34 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +    // Click 'login with permanent password' link if SMS login page is shown
 +    try {
-+      await this.page.waitForSelector('a#flip', { timeout: 5000 });
-+      debug('SMS login page detected, clicking permanent password link');
-+      await this.page.click('a#flip');
-+      await new Promise(r => setTimeout(r, 2000));
++      await this.page.waitForFunction(() => {
++        const text = 'או כניסה עם סיסמה קבועה';
++        return Array.from(document.querySelectorAll('a, button, [role="button"]')).some(el =>
++          (el.textContent && el.textContent.includes(text)) ||
++          (el.getAttribute('aria-label') && el.getAttribute('aria-label').includes(text))
++        );
++      }, { timeout: 10000 });
++
++      const clicked = await this.page.evaluate(() => {
++        const text = 'או כניסה עם סיסמה קבועה';
++        const el = Array.from(document.querySelectorAll('a, button, [role="button"]')).find(el =>
++          (el.textContent && el.textContent.includes(text)) ||
++          (el.getAttribute('aria-label') && el.getAttribute('aria-label').includes(text))
++        );
++        if (el) {
++          el.click();
++          return true;
++        }
++        return false;
++      });
++
++      debug(`Clicked permanent password link: ${clicked}`);
++      await new Promise(r => setTimeout(r, 3000));
 +    } catch (e) {
 +      debug('No SMS login page detected or link not found, continuing');
 +    }
