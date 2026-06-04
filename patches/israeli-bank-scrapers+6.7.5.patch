@@ -1,38 +1,62 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..9cf4dc7 100644
+index 0cd2096..7c7238a 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,34 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -249,6 +249,58 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +    // Click 'login with permanent password' link if SMS login page is shown
 +    try {
-+      await this.page.waitForFunction(() => {
-+        const text = 'או כניסה עם סיסמה קבועה';
-+        return Array.from(document.querySelectorAll('a, button, [role="button"]')).some(el =>
-+          (el.textContent && el.textContent.includes(text)) ||
-+          (el.getAttribute('aria-label') && el.getAttribute('aria-label').includes(text))
-+        );
-+      }, { timeout: 10000 });
++      await new Promise(r => setTimeout(r, 3000));
++      debug(`Frames count: ${this.page.frames().length}`);
 +
-+      const clicked = await this.page.evaluate(() => {
-+        const text = 'או כניסה עם סיסמה קבועה';
-+        const el = Array.from(document.querySelectorAll('a, button, [role="button"]')).find(el =>
-+          (el.textContent && el.textContent.includes(text)) ||
-+          (el.getAttribute('aria-label') && el.getAttribute('aria-label').includes(text))
-+        );
-+        if (el) {
-+          el.click();
-+          return true;
++      let clickedPasswordLogin = false;
++
++      for (const frame of this.page.frames()) {
++        try {
++          const found = await frame.evaluate(() => {
++            const wanted = 'או כניסה עם סיסמה קבועה';
++
++            const elements = Array.from(document.querySelectorAll('a, button, [role="button"], span, div'));
++
++            const el = elements.find(el => {
++              const text = el.textContent || '';
++              const aria = el.getAttribute('aria-label') || '';
++              const cls = el.getAttribute('class') || '';
++              const ngClick = el.getAttribute('ng-click') || '';
++              const ngBind = el.getAttribute('ng-bind') || '';
++
++              return (
++                text.includes(wanted) ||
++                aria.includes(wanted) ||
++                cls.includes('connection-with-password-link') ||
++                ngClick.includes('rotateView') ||
++                ngBind.includes('SwitchToPassword')
++              );
++            });
++
++            if (el) {
++              el.click();
++              return true;
++            }
++
++            return false;
++          });
++
++          if (found) {
++            clickedPasswordLogin = true;
++            break;
++          }
++        } catch (e) {
++          // ignore frame access errors
 +        }
-+        return false;
-+      });
++      }
 +
-+      debug(`Clicked permanent password link: ${clicked}`);
++      debug(`Clicked permanent password login: ${clickedPasswordLogin}`);
 +      await new Promise(r => setTimeout(r, 3000));
 +    } catch (e) {
-+      debug('No SMS login page detected or link not found, continuing');
++      debug('Error in password login switch', e);
 +    }
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
