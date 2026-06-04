@@ -11,4 +11,5 @@ output
 
 
 src/utils/*.json
+firebase-key.json
 Commands.txt

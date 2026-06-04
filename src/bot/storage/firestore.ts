@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
@@ -8,7 +9,20 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const logger = createLogger("FirestoreStorage");
 
-const { FIREBASE_SERVICE_ACCOUNT_JSON = "" } = process.env;
+const {
+  FIREBASE_SERVICE_ACCOUNT_JSON = "",
+  FIREBASE_SERVICE_ACCOUNT_PATH = "",
+} = process.env;
+
+function loadServiceAccount(): object | null {
+  if (FIREBASE_SERVICE_ACCOUNT_PATH) {
+    return JSON.parse(readFileSync(FIREBASE_SERVICE_ACCOUNT_PATH, "utf-8"));
+  }
+  if (FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+  }
+  return null;
+}
 
 let appInitialized = false;
 
@@ -17,9 +31,9 @@ export class FirestoreStorage implements TransactionStorage {
 
   constructor() {
     if (!appInitialized && this.canSave()) {
-      const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+      const serviceAccount = loadServiceAccount();
       initializeApp({
-        credential: cert(serviceAccount),
+        credential: cert(serviceAccount as any),
       });
       appInitialized = true;
     }
@@ -29,7 +43,7 @@ export class FirestoreStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(FIREBASE_SERVICE_ACCOUNT_JSON);
+    return Boolean(FIREBASE_SERVICE_ACCOUNT_JSON || FIREBASE_SERVICE_ACCOUNT_PATH);
   }
 
   async saveTransactions(
