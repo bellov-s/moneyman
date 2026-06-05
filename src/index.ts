@@ -10,6 +10,8 @@ import { reportRunMetadata } from "./runnerMetadata.js";
 
 const logger = createLogger("main");
 
+process.setMaxListeners(20);
+
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
