@@ -16,6 +16,11 @@ export const browserArgs = [
   "--disable-features=IsolateOrigins,site-per-process",
   "--disable-infobars",
   "--window-size=1920,1080",
+  "--disable-web-security",
+  "--allow-running-insecure-content",
+  "--ignore-certificate-errors",
+  "--lang=he-IL,he,en-US,en",
+  "--accept-lang=he-IL,he,en-US,en",
 ];
 export const browserExecutablePath =
   process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
@@ -26,7 +31,7 @@ export async function createBrowser(): Promise<Browser> {
   const options = {
     args: browserArgs,
     executablePath: browserExecutablePath,
-    headless: "shell" as const,
+    headless: true,
   } satisfies LaunchOptions;
 
   logger("Creating browser", options);
@@ -62,12 +67,27 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
       await page.evaluateOnNewDocument(() => {
         Object.defineProperty(navigator, "webdriver", { get: () => false });
         // @ts-ignore
-        window.chrome = { runtime: {} };
+        window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
         Object.defineProperty(navigator, "plugins", {
           get: () => [1, 2, 3, 4, 5],
         });
         Object.defineProperty(navigator, "languages", {
           get: () => ["he-IL", "he", "en-US", "en"],
+        });
+        Object.defineProperty(navigator, "platform", {
+          get: () => "Linux x86_64",
+        });
+        Object.defineProperty(navigator, "hardwareConcurrency", {
+          get: () => 8,
+        });
+        Object.defineProperty(navigator, "deviceMemory", {
+          get: () => 8,
+        });
+        // @ts-ignore
+        Object.defineProperty(navigator, "permissions", {
+          get: () => ({
+            query: async () => ({ state: "prompt" }),
+          }),
         });
       });
 
