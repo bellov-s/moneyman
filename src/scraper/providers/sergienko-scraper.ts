@@ -1,5 +1,6 @@
 import {
   createScraper,
+  SCRAPERS,
   CompanyTypes as SCompanyTypes,
   type ScraperOptions as SScraperOptions,
   type IScraperScrapingResult,
@@ -34,11 +35,11 @@ function mapCompanyId(companyId: string): SCompanyTypes {
   return companyMap[companyId] ?? (companyId as SCompanyTypes);
 }
 
-// Direct login URLs to bypass home page navigation
-const DIRECT_LOGIN_URLS: Record<string, string> = {
-  isracard: "https://digital.isracard.co.il/personalarea/Login",
-  amex: "https://he.americanexpress.co.il/personalarea/Login",
-};
+// Override base URLs to point directly to login pages (bypass HOME phase)
+(SCRAPERS as any).isracard.urls.base =
+  "https://digital.isracard.co.il/personalarea/Login";
+(SCRAPERS as any).amex.urls.base =
+  "https://he.americanexpress.co.il/personalarea/Login";
 
 export async function scrapeWithSergienko(
   account: AccountConfig,
@@ -50,31 +51,26 @@ export async function scrapeWithSergienko(
   logger(`started (${companyId})`);
 
   try {
-    const credentials: ScraperCredentials = { ...account } as any;
+    // Credentials: id + password + card6Digits (standard Isracard/Amex format)
+    const credentials: ScraperCredentials = {
+      id: (account as any).id,
+      password: (account as any).password,
+      card6Digits: (account as any).card6Digits,
+    } as any;
 
     const options: SScraperOptions = {
       companyId,
       startDate,
       futureMonthsToScrape,
       viewportSize: { width: 1920, height: 1080 },
-      // OTP retriever at ScraperOptions level — called when 2FA/SMS screen is detected
+      // OTP retriever — called when 2FA/SMS screen is detected after login
       otpCodeRetriever: async (phoneHint: string) => {
-        logger(`OTP screen detected for ${account.companyId}, phone hint: ${phoneHint}`);
+        logger(
+          `OTP screen detected for ${account.companyId}, phone hint: ${phoneHint}`,
+        );
         return requestOtpCode(account.companyId, phoneHint || "unknown");
       },
       otpTimeoutMs: Number(process.env.OTP_TIMEOUT_SECONDS || 300) * 1000,
-      // Navigate directly to login page to avoid "HOME PRE: no login nav link" error
-      preparePage: async (page: any) => {
-        const directUrl = DIRECT_LOGIN_URLS[account.companyId];
-        if (directUrl) {
-          logger(`${account.companyId}: navigating directly to ${directUrl}`);
-          await page.goto(directUrl, {
-            waitUntil: "domcontentloaded",
-            timeout: 30000,
-          });
-          await page.waitForTimeout(2000);
-        }
-      },
     };
 
     const scraper = createScraper(options);
