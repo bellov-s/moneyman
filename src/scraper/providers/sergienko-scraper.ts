@@ -63,6 +63,9 @@ export async function scrapeWithSergienko(
       startDate,
       futureMonthsToScrape,
       viewportSize: { width: 1920, height: 1080 },
+      preparePage: async (page: any) => {
+        await preparePageForCompany(page, account.companyId);
+      },
     };
 
     const scraper = createScraper(options);
@@ -87,5 +90,36 @@ export async function scrapeWithSergienko(
       errorType: "GENERIC" as any,
       errorMessage: String(e),
     };
+  }
+}
+
+/**
+ * Pre-login page preparation per company.
+ * - Amex: click "או כניסה עם סיסמה קבועה" link to switch from SMS to password login
+ * - Isracard: navigate directly to login page to avoid "no login nav link" error
+ */
+async function preparePageForCompany(page: any, companyId: string) {
+  if (companyId === "isracard") {
+    logger("Isracard: navigating directly to login page");
+    await page.goto("https://digital.isracard.co.il/personalarea/Login", {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    await page.waitForTimeout(3000);
+  }
+
+  if (companyId === "amex" || companyId === "isracard") {
+    logger(`${companyId}: looking for permanent password link`);
+    try {
+      const link = await page.locator(
+        'text="או כניסה עם סיסמה קבועה", [aria-label*="או כניסה עם סיסמה קבועה"]',
+      ).first();
+      await link.waitFor({ timeout: 15000 });
+      await link.click();
+      logger(`${companyId}: clicked permanent password link`);
+      await page.waitForTimeout(3000);
+    } catch (e) {
+      logger(`${companyId}: permanent password link not found, continuing`);
+    }
   }
 }
