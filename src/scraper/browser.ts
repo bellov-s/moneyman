@@ -1,4 +1,4 @@
-import type { CompanyTypes } from "israeli-bank-scrapers";
+﻿import type { CompanyTypes } from "israeli-bank-scrapers";
 import puppeteer, {
   TargetType,
   type Browser,

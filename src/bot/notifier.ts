@@ -1,4 +1,4 @@
-import { Telegraf, TelegramError } from "telegraf";
+﻿import { Telegraf, TelegramError } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 

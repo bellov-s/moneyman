@@ -1,4 +1,4 @@
-import { CompanyTypes } from "israeli-bank-scrapers";
+﻿import { CompanyTypes } from "israeli-bank-scrapers";
 import { getSummaryMessages, saving } from "./messages.js";
 import { AccountScrapeResult, Transaction, TransactionRow } from "../types.js";
 import {

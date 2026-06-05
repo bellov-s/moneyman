@@ -1,4 +1,4 @@
-import { saveResults, storages } from "./storage/index.js";
+﻿import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { getSummaryMessages } from "./messages.js";

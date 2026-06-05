@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+﻿import { readFileSync } from "node:fs";
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";

@@ -1,4 +1,4 @@
-import { normalizeCurrency } from "./currency.js";
+﻿import { normalizeCurrency } from "./currency.js";
 
 describe("normalizeCurrency", () => {
   it("should return undefined if currency is undefined", () => {

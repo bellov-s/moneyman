@@ -1,4 +1,4 @@
-import { editMessage, send, sendError } from "../notifier.js";
+﻿import { editMessage, send, sendError } from "../notifier.js";
 import {
   AccountScrapeResult,
   TransactionRow,

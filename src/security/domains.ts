@@ -1,4 +1,4 @@
-import { CompanyTypes } from "israeli-bank-scrapers";
+﻿import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";

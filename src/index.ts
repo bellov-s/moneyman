@@ -1,4 +1,4 @@
-import { scrapeAccounts } from "./scraper/index.js";
+﻿import { scrapeAccounts } from "./scraper/index.js";
 import { getScraperConfig } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";

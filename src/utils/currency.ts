@@ -1,4 +1,4 @@
-const symbolToCurrency = {
+﻿const symbolToCurrency = {
   $: "USD",
   "€": "EUR",
   "₪": "ILS",

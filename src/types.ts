@@ -1,4 +1,4 @@
-import type { CompanyTypes } from "israeli-bank-scrapers";
+﻿import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions.js";
 import type {
   ScraperCredentials,

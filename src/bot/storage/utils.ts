@@ -1,4 +1,4 @@
-import { formatISO, parseISO, roundToNearestMinutes } from "date-fns";
+﻿import { formatISO, parseISO, roundToNearestMinutes } from "date-fns";
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions.js";
 

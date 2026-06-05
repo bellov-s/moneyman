@@ -1,4 +1,4 @@
-import { CompanyTypes } from "israeli-bank-scrapers";
+﻿import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { addToKeyedMap } from "../utils/collections.js";
 

@@ -1,4 +1,4 @@
-import { format, parseISO } from "date-fns";
+﻿import { format, parseISO } from "date-fns";
 import { systemName } from "../config.js";
 import type { TransactionRow } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";

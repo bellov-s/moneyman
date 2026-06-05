@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+﻿import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { initDomainTracking, getUsedDomains } from "./domains.js";
 import {

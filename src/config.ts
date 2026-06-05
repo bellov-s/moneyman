@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import { subDays } from "date-fns";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";

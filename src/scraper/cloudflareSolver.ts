@@ -1,4 +1,4 @@
-import { Page } from "puppeteer";
+﻿import { Page } from "puppeteer";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { sleep } from "../utils/utils.js";
 

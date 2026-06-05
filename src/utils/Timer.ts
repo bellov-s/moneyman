@@ -1,4 +1,4 @@
-export class Timer {
+﻿export class Timer {
   duration: number;
   startTime: number;
 

@@ -1,4 +1,4 @@
-import { performance } from "perf_hooks";
+﻿import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";

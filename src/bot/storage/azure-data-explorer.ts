@@ -1,4 +1,4 @@
-import { Readable } from "node:stream";
+﻿import { Readable } from "node:stream";
 import { KustoConnectionStringBuilder } from "azure-kusto-data";
 import {
   DataFormat,

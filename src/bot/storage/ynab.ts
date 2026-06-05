@@ -1,4 +1,4 @@
-import { TransactionRow, TransactionStorage } from "../../types.js";
+﻿import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";

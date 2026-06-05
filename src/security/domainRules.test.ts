@@ -1,4 +1,4 @@
-import { CompanyTypes } from "israeli-bank-scrapers";
+﻿import { CompanyTypes } from "israeli-bank-scrapers";
 import { DomainRuleManager } from "./domainRules.js";
 
 jest.mock("../utils/logger.js", () => ({

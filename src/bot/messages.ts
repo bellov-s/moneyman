@@ -1,4 +1,4 @@
-import {
+﻿import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";

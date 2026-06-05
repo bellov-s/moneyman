@@ -1,4 +1,4 @@
-import { sendJSON } from "../notifier.js";
+﻿import { sendJSON } from "../notifier.js";
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";

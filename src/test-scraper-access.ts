@@ -1,4 +1,4 @@
-import debug from "debug";
+﻿import debug from "debug";
 import { CompanyTypes, createScraper } from "israeli-bank-scrapers";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
