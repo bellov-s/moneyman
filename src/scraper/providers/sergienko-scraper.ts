@@ -34,6 +34,12 @@ function mapCompanyId(companyId: string): SCompanyTypes {
   return companyMap[companyId] ?? (companyId as SCompanyTypes);
 }
 
+// Direct login URLs to bypass home page navigation
+const DIRECT_LOGIN_URLS: Record<string, string> = {
+  isracard: "https://digital.isracard.co.il/personalarea/Login",
+  amex: "https://he.americanexpress.co.il/personalarea/Login",
+};
+
 export async function scrapeWithSergienko(
   account: AccountConfig,
   startDate: Date,
@@ -44,27 +50,30 @@ export async function scrapeWithSergienko(
   logger(`started (${companyId})`);
 
   try {
-    const phoneNumber = (account as any).phoneNumber ?? "";
-
-    const otpCodeRetriever = phoneNumber
-      ? async () => {
-          logger(`OTP requested for ${companyId}`);
-          return requestOtpCode(account.companyId, phoneNumber);
-        }
-      : undefined;
-
-    const credentials: ScraperCredentials = {
-      ...account,
-      ...(otpCodeRetriever ? { otpCodeRetriever, phoneNumber } : {}),
-    } as any;
+    const credentials: ScraperCredentials = { ...account } as any;
 
     const options: SScraperOptions = {
       companyId,
       startDate,
       futureMonthsToScrape,
       viewportSize: { width: 1920, height: 1080 },
+      // OTP retriever at ScraperOptions level — called when 2FA/SMS screen is detected
+      otpCodeRetriever: async (phoneHint: string) => {
+        logger(`OTP screen detected for ${account.companyId}, phone hint: ${phoneHint}`);
+        return requestOtpCode(account.companyId, phoneHint || "unknown");
+      },
+      otpTimeoutMs: Number(process.env.OTP_TIMEOUT_SECONDS || 300) * 1000,
+      // Navigate directly to login page to avoid "HOME PRE: no login nav link" error
       preparePage: async (page: any) => {
-        await preparePageForCompany(page, account.companyId);
+        const directUrl = DIRECT_LOGIN_URLS[account.companyId];
+        if (directUrl) {
+          logger(`${account.companyId}: navigating directly to ${directUrl}`);
+          await page.goto(directUrl, {
+            waitUntil: "domcontentloaded",
+            timeout: 30000,
+          });
+          await page.waitForTimeout(2000);
+        }
       },
     };
 
@@ -90,36 +99,5 @@ export async function scrapeWithSergienko(
       errorType: "GENERIC" as any,
       errorMessage: String(e),
     };
-  }
-}
-
-/**
- * Pre-login page preparation per company.
- * - Amex: click "או כניסה עם סיסמה קבועה" link to switch from SMS to password login
- * - Isracard: navigate directly to login page to avoid "no login nav link" error
- */
-async function preparePageForCompany(page: any, companyId: string) {
-  if (companyId === "isracard") {
-    logger("Isracard: navigating directly to login page");
-    await page.goto("https://digital.isracard.co.il/personalarea/Login", {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-    await page.waitForTimeout(3000);
-  }
-
-  if (companyId === "amex" || companyId === "isracard") {
-    logger(`${companyId}: looking for permanent password link`);
-    try {
-      const link = await page.locator(
-        'text="או כניסה עם סיסמה קבועה", [aria-label*="או כניסה עם סיסמה קבועה"]',
-      ).first();
-      await link.waitFor({ timeout: 15000 });
-      await link.click();
-      logger(`${companyId}: clicked permanent password link`);
-      await page.waitForTimeout(3000);
-    } catch (e) {
-      logger(`${companyId}: permanent password link not found, continuing`);
-    }
   }
 }
