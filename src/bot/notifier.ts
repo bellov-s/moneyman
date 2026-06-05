@@ -115,6 +115,54 @@ logger(`Hidden deprecations: ${HIDDEN_DEPRECATIONS}`);
 
 const sentDeprecationMessages = new Set<string>(HIDDEN_DEPRECATIONS.split(","));
 
+export async function requestOtpCode(
+  companyId: string,
+  phoneNumber: string,
+): Promise<string> {
+  if (!bot || !TELEGRAM_CHAT_ID) {
+    throw new Error("Telegram is not configured, cannot receive OTP");
+  }
+
+  logger(`Requesting OTP for ${companyId} (${phoneNumber})`);
+
+  await send(
+    `🔐 OTP Required\n\nAccount: ${companyId}\nPhone: ${phoneNumber}\n\nPlease reply with the OTP code sent to your phone.`,
+  );
+
+  return new Promise<string>((resolve, reject) => {
+    const timeoutMs = Number(process.env.OTP_TIMEOUT_SECONDS || 300) * 1000;
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error(`OTP timeout after ${timeoutMs / 1000}s`));
+      }
+    }, timeoutMs);
+
+    bot!.on("message", (ctx) => {
+      if (resolved) return;
+      const chatId = ctx.chat?.id?.toString();
+      const text = (ctx.message as any)?.text?.trim();
+      if (chatId !== TELEGRAM_CHAT_ID || !text) return;
+
+      resolved = true;
+      clearTimeout(timeout);
+      logger(`Received OTP code for ${companyId}`);
+      void ctx.reply("✅ OTP received, continuing...");
+      resolve(text);
+    });
+
+    bot!.launch().catch((e) => {
+      if (!String(e).includes("already running") && !resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        reject(e);
+      }
+    });
+  });
+}
+
 export function sendDeprecationMessage(
   messageId: keyof typeof deprecationMessages,
 ) {

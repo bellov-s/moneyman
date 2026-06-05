@@ -6,6 +6,7 @@
 import { AccountConfig } from "../types.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createLogger } from "../utils/logger.js";
+import { getOtpCodeRetriever } from "./otp.js";
 
 const logger = createLogger("scrape");
 
@@ -23,7 +24,12 @@ export async function getAccountTransactions(
       onProgress(companyId, type);
     });
 
-    const result = await scraper.scrape(account);
+    const otpCodeRetriever = getOtpCodeRetriever(account);
+    const credentials = otpCodeRetriever
+      ? { ...account, otpCodeRetriever }
+      : account;
+
+    const result = await scraper.scrape(credentials as any);
 
     if (!result.success) {
       logger(`error: ${result.errorType} ${result.errorMessage}`);
