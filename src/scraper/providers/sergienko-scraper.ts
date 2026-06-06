@@ -1,6 +1,5 @@
 import {
   createScraper,
-  SCRAPERS,
   CompanyTypes as SCompanyTypes,
   type ScraperOptions as SScraperOptions,
   type IScraperScrapingResult,
@@ -35,11 +34,16 @@ function mapCompanyId(companyId: string): SCompanyTypes {
   return companyMap[companyId] ?? (companyId as SCompanyTypes);
 }
 
-// Override base URLs to point directly to login pages (bypass HOME phase)
-(SCRAPERS as any).isracard.urls.base =
-  "https://digital.isracard.co.il/personalarea/Login";
-(SCRAPERS as any).amex.urls.base =
-  "https://he.americanexpress.co.il/personalarea/Login";
+// Redirect URLs: when the scraper navigates to these, intercept and go to login page instead
+const LOGIN_REDIRECTS: Record<string, string> = {
+  isracard: "https://digital.isracard.co.il/personalarea/Login",
+  amex: "https://he.americanexpress.co.il/personalarea/Login",
+};
+
+const HOME_URLS: Record<string, string> = {
+  isracard: "https://www.isracard.co.il",
+  amex: "https://americanexpress.co.il",
+};
 
 export async function scrapeWithSergienko(
   account: AccountConfig,
@@ -71,6 +75,23 @@ export async function scrapeWithSergienko(
         return requestOtpCode(account.companyId, phoneHint || "unknown");
       },
       otpTimeoutMs: Number(process.env.OTP_TIMEOUT_SECONDS || 300) * 1000,
+      // Intercept home page navigation and redirect to login page
+      preparePage: async (page: any) => {
+        const homeUrl = HOME_URLS[account.companyId];
+        const loginUrl = LOGIN_REDIRECTS[account.companyId];
+        if (homeUrl && loginUrl) {
+          logger(`${account.companyId}: setting up route intercept ${homeUrl} -> ${loginUrl}`);
+          await page.route(`${homeUrl}/**`, async (route: any) => {
+            const url = route.request().url();
+            if (url === homeUrl || url === homeUrl + "/") {
+              logger(`${account.companyId}: redirecting home to login`);
+              await route.fulfill({ status: 302, headers: { location: loginUrl } });
+            } else {
+              await route.continue();
+            }
+          });
+        }
+      },
     };
 
     const scraper = createScraper(options);
