@@ -14,6 +14,15 @@ const SERGIENKO_COMPANIES = new Set(
     .filter(Boolean),
 );
 
+// If set, only scrape these companies (for testing)
+const ONLY_COMPANIES = process.env.ONLY_COMPANIES
+  ? new Set(
+      process.env.ONLY_COMPANIES.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    )
+  : null;
+
 function shouldUseSergienko(companyId: string): boolean {
   return SERGIENKO_COMPANIES.has(companyId);
 }
@@ -23,8 +32,16 @@ export async function getAccountTransactions(
   options: ScraperOptions,
   onProgress: (companyId: string, status: string) => void,
 ): Promise<ScraperScrapingResult> {
+  // Skip if ONLY_COMPANIES is set and this company is not in the list
+  if (ONLY_COMPANIES && !ONLY_COMPANIES.has(account.companyId)) {
+    logger(`SKIP ${account.companyId} (not in ONLY_COMPANIES=${process.env.ONLY_COMPANIES})`);
+    return { success: true, accounts: [] };
+  }
+
   const useSergienko = shouldUseSergienko(account.companyId);
-  logger(`Routing ${account.companyId}: engine=${useSergienko ? "sergienko" : "old"} (SERGIENKO_COMPANIES=${process.env.SERGIENKO_COMPANIES || "amex,isracard"})`);
+  logger(
+    `Routing ${account.companyId}: engine=${useSergienko ? "sergienko" : "old"}`,
+  );
 
   if (useSergienko) {
     return scrapeWithSergienko(

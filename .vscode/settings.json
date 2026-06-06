@@ -10,5 +10,18 @@
   ],
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "file:///workspaces/money/.github/workflows/build.yml"
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/debug/**": true,
+    "**/dist/**": true,
+    "**/dst/**": true,
+    "**/.git/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/debug": true,
+    "**/dist": true,
+    "**/dst": true
   }
 }

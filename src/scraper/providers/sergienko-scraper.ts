@@ -15,13 +15,10 @@ import type { ScraperScrapingResult } from "israeli-bank-scrapers";
 const logger = createLogger("sergienko-scraper");
 
 const DEBUG_DIR = "/app/debug";
-
-// Ensure debug dir exists
 try {
   fs.mkdirSync(DEBUG_DIR, { recursive: true });
 } catch {}
 
-// Map old companyId strings to new PascalCase enum
 const companyMap: Record<string, SCompanyTypes> = {
   amex: SCompanyTypes.Amex,
   isracard: SCompanyTypes.Isracard,
@@ -42,7 +39,6 @@ function mapCompanyId(companyId: string): SCompanyTypes {
   return companyMap[companyId] ?? (companyId as SCompanyTypes);
 }
 
-// Redirect URLs: when the scraper navigates to these, intercept and go to login page instead
 const LOGIN_REDIRECTS: Record<string, string> = {
   isracard: "https://digital.isracard.co.il/personalarea/Login",
   amex: "https://he.americanexpress.co.il/personalarea/Login",
@@ -53,23 +49,20 @@ const HOME_URLS: Record<string, string> = {
   amex: "https://americanexpress.co.il",
 };
 
-async function dumpDebug(page: any, companyId: string, label: string) {
-  const ts = Date.now();
+let dumpSeq = 0;
+
+async function dump(page: any, companyId: string, label: string) {
+  dumpSeq++;
+  const prefix = `${DEBUG_DIR}/${companyId}-${String(dumpSeq).padStart(2, "0")}-${label}`;
   try {
-    await page.screenshot({
-      path: `${DEBUG_DIR}/${companyId}-${label}-${ts}.png`,
-      fullPage: true,
-    });
-    const html = await page.content();
-    fs.writeFileSync(
-      `${DEBUG_DIR}/${companyId}-${label}-${ts}.html`,
-      html,
-      "utf8",
-    );
-    const url = page.url();
-    logger(`[${companyId}] DEBUG ${label}: URL=${url}, saved screenshot+html`);
+    const url = page.url?.() ?? "unknown";
+    logger(`[${companyId}] DUMP #${dumpSeq} ${label} url=${url}`);
+    await page.screenshot({ path: `${prefix}.png`, fullPage: true }).catch(() => {});
+    const html = await page.content().catch(() => "");
+    if (html) fs.writeFileSync(`${prefix}.html`, html, "utf8");
   } catch (e) {
-    logger(`[${companyId}] DEBUG ${label}: failed to dump - ${e}`);
+    logger(`[${companyId}] DUMP #${dumpSeq} ${label} FAILED: ${e}`);
+    fs.writeFileSync(`${prefix}.error.txt`, String(e), "utf8");
   }
 }
 
@@ -80,10 +73,37 @@ export async function scrapeWithSergienko(
   onProgress?: (companyId: string, status: string) => void,
 ): Promise<ScraperScrapingResult> {
   const companyId = mapCompanyId(account.companyId);
-  logger(`started (${companyId})`);
+  const timeoutMs =
+    Number(process.env.SCRAPER_TIMEOUT_SECONDS || 120) * 1000;
+
+  logger(`started (${companyId}), timeout=${timeoutMs}ms`);
+
+  // Hard timeout wrapper
+  const scrapePromise = doScrape(account, companyId, startDate, futureMonthsToScrape, onProgress);
+  const timeoutPromise = new Promise<ScraperScrapingResult>((_, reject) =>
+    setTimeout(() => reject(new Error(`Hard timeout ${timeoutMs}ms for ${account.companyId}`)), timeoutMs),
+  );
 
   try {
-    // Credentials: id + password + card6Digits (standard Isracard/Amex format)
+    return await Promise.race([scrapePromise, timeoutPromise]);
+  } catch (e) {
+    logger(`[${account.companyId}] timeout/error: ${e}`);
+    return {
+      success: false,
+      errorType: "GENERIC" as any,
+      errorMessage: String(e),
+    };
+  }
+}
+
+async function doScrape(
+  account: AccountConfig,
+  companyId: SCompanyTypes,
+  startDate: Date,
+  futureMonthsToScrape?: number,
+  onProgress?: (companyId: string, status: string) => void,
+): Promise<ScraperScrapingResult> {
+  try {
     const credentials: ScraperCredentials = {
       id: (account as any).id,
       password: (account as any).password,
@@ -95,26 +115,34 @@ export async function scrapeWithSergienko(
       startDate,
       futureMonthsToScrape,
       viewportSize: { width: 1920, height: 1080 },
-      // OTP retriever — called when 2FA/SMS screen is detected after login
       otpCodeRetriever: async (phoneHint: string) => {
-        logger(
-          `OTP screen detected for ${account.companyId}, phone hint: ${phoneHint}`,
-        );
+        logger(`OTP screen detected for ${account.companyId}, phone hint: ${phoneHint}`);
+        await dump((globalPage as any), account.companyId, "otp-screen");
         return requestOtpCode(account.companyId, phoneHint || "unknown");
       },
       otpTimeoutMs: Number(process.env.OTP_TIMEOUT_SECONDS || 300) * 1000,
-      // Intercept home page navigation and redirect to login page
       preparePage: async (page: any) => {
+        // Store page reference for OTP dump
+        globalPage = page;
+
+        logger(`[${account.companyId}] preparePage called, url=${page.url()}`);
+        await dump(page, account.companyId, "preparePage-start");
+
+        // Set up route intercepts for home -> login redirect
         const homeUrl = HOME_URLS[account.companyId];
         const loginUrl = LOGIN_REDIRECTS[account.companyId];
         if (homeUrl && loginUrl) {
-          logger(
-            `${account.companyId}: setting up route intercept ${homeUrl} -> ${loginUrl}`,
-          );
-          await page.route(`${homeUrl}/**`, async (route: any) => {
-            const url = route.request().url();
-            if (url === homeUrl || url === homeUrl + "/") {
-              logger(`${account.companyId}: redirecting home to login`);
+          logger(`[${account.companyId}] route intercept: ${homeUrl} -> ${loginUrl}`);
+          await page.route("**/*", async (route: any) => {
+            const reqUrl = route.request().url();
+            if (
+              reqUrl === homeUrl ||
+              reqUrl === homeUrl + "/" ||
+              reqUrl === `https://www.${homeUrl.replace("https://", "")}` ||
+              reqUrl === `https://www.${homeUrl.replace("https://", "")}/`
+            ) {
+              logger(`[${account.companyId}] REDIRECT: ${reqUrl} -> ${loginUrl}`);
+              await dump(page, account.companyId, "before-redirect");
               await route.fulfill({
                 status: 302,
                 headers: { location: loginUrl },
@@ -123,33 +151,20 @@ export async function scrapeWithSergienko(
               await route.continue();
             }
           });
-          // Also intercept exact base URL without trailing slash
-          await page.route(homeUrl, async (route: any) => {
-            logger(`${account.companyId}: redirecting exact home to login`);
-            await route.fulfill({
-              status: 302,
-              headers: { location: loginUrl },
-            });
-          });
         }
 
-        // Dump page state after preparePage for debugging
-        // The page starts at about:blank here, real dump happens on error
-        page.on("pageerror", async (err: any) => {
-          logger(`[${account.companyId}] Page error: ${err}`);
-        });
-
-        // Dump debug on any navigation that settles
-        let dumpCount = 0;
-        page.on("load", async () => {
-          dumpCount++;
-          if (dumpCount <= 3) {
-            await dumpDebug(page, account.companyId, `load-${dumpCount}`);
+        // Dump on every frame navigation
+        page.on("framenavigated", async (frame: any) => {
+          const url = frame.url?.() ?? "";
+          if (url && url !== "about:blank") {
+            logger(`[${account.companyId}] frame navigated: ${url}`);
+            await dump(page, account.companyId, "nav");
           }
         });
       },
     };
 
+    let globalPage: any = null;
     const scraper = createScraper(options);
 
     scraper.onProgress((cid, payload) => {
@@ -161,6 +176,9 @@ export async function scrapeWithSergienko(
 
     if (!result.success) {
       logger(`error: ${result.errorType} ${result.errorMessage}`);
+      if (globalPage) {
+        await dump(globalPage, account.companyId, "final-error");
+      }
     }
     logger(`ended`);
 
