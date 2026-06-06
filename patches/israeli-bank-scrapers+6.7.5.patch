@@ -1,21 +1,81 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..fcb635f 100644
+index 0cd2096..f34f63f 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -249,7 +249,35 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +    // Switch to permanent password login form
++    const _debugEnabled = process.env.DEBUG_SCRAPER === 'true';
++    const _fs = _debugEnabled ? require('fs') : null;
++    const _dumpDebug = async (label) => {
++      if (!_debugEnabled || !this.page) return;
++      try {
++        const dir = '/app/debug';
++        try { _fs.mkdirSync(dir, { recursive: true }); } catch {}
++        const ts = Date.now();
++        const prefix = dir + '/' + this.companyCode + '-' + label + '-' + ts;
++        await this.page.screenshot({ path: prefix + '.png', fullPage: true }).catch(() => {});
++        const html = await this.page.content().catch(() => '');
++        if (html) _fs.writeFileSync(prefix + '.html', html, 'utf8');
++        debug('DEBUG DUMP: ' + label + ' url=' + this.page.url());
++      } catch (e) { debug('DEBUG DUMP FAILED: ' + label, e.message); }
++    };
 +    try {
 +      await this.page.waitForSelector('#flip', { timeout: 15000 });
 +      debug('Clicking #flip to switch to password login');
 +      await this.page.click('#flip');
 +      await this.page.waitForSelector('#otpLoginPwd', { timeout: 10000 });
 +      debug('Password form is now visible');
++      await _dumpDebug('after-flip');
 +    } catch (e) {
 +      debug('Could not switch to password form, continuing anyway', e.message);
++      await _dumpDebug('flip-failed');
 +    }
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
++    await _dumpDebug('before-validate');
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
+       id: credentials.id,
+@@ -261,7 +289,23 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+     };
+     debug('logging in with validate request');
+     const validateResult = await (0, _fetch.fetchPostWithinPage)(this.page, validateUrl, validateRequest);
++    // Safe logging of validateResult (no secrets)
++    debug('validateResult safe log:', JSON.stringify({
++      hasResult: !!validateResult,
++      headerStatus: validateResult?.Header?.Status,
++      hasValidateBean: !!validateResult?.ValidateIdDataBean,
++      returnCode: validateResult?.ValidateIdDataBean?.returnCode,
++      hasUserName: !!validateResult?.ValidateIdDataBean?.userName,
++      allKeys: validateResult ? Object.keys(validateResult) : [],
++      beanKeys: validateResult?.ValidateIdDataBean ? Object.keys(validateResult.ValidateIdDataBean) : [],
++    }));
+     if (!validateResult || !validateResult.Header || validateResult.Header.Status !== '1' || !validateResult.ValidateIdDataBean) {
++      debug('validateResult FAILED - full safe dump:', JSON.stringify({
++        headerStatus: validateResult?.Header?.Status,
++        headerKeys: validateResult?.Header ? Object.keys(validateResult.Header) : [],
++        topKeys: validateResult ? Object.keys(validateResult) : [],
++      }));
++      await _dumpDebug('validate-failed');
+       throw new Error('unknown error during login');
+     }
+     const validateReturnCode = validateResult.ValidateIdDataBean.returnCode;
+@@ -281,7 +325,15 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+       };
+       debug('user login started');
+       const loginResult = await (0, _fetch.fetchPostWithinPage)(this.page, loginUrl, request);
+-      debug(`user login with status '${loginResult?.status}'`, loginResult);
++      // Safe logging of loginResult (no secrets)
++      debug('loginResult safe log:', JSON.stringify({
++        hasResult: !!loginResult,
++        status: loginResult?.status,
++        allKeys: loginResult ? Object.keys(loginResult) : [],
++        errorMessage: loginResult?.errorMessage || loginResult?.message || loginResult?.Message || undefined,
++        errorCode: loginResult?.errorCode || loginResult?.ErrorCode || undefined,
++      }));
++      debug(`user login with status '${loginResult?.status}'`);
+       if (loginResult && loginResult.status === '1') {
+         this.emitProgress(_definitions.ScraperProgressTypes.LoginSuccess);
+         return {

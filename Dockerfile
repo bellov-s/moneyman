@@ -1,16 +1,20 @@
 FROM ghcr.io/puppeteer/puppeteer
 
+USER root
+
 WORKDIR /app
 
-COPY tsconfig.json .
 COPY package.json .
 COPY package-lock.json .
-COPY ./patches ./patches
+COPY tsconfig.json .
+COPY patches ./patches
+
 RUN npm install
 
-COPY ./src ./src
+COPY src ./src
+
 RUN npm run build
 
-RUN mkdir -p /app/debug
+USER pptruser
 
-CMD ["npm", "run", "start"]
+CMD ["npm","run","start"]
