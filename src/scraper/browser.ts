@@ -8,6 +8,7 @@ import puppeteer, {
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
+import { debugDump, isDebugEnabled } from "./debug.js";
 
 export const browserArgs = [
   "--disable-dev-shm-usage",
@@ -99,6 +100,12 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
           parentFrameUrl: frame.parentFrame()?.url(),
         });
         logToMetadataFile(`Frame navigated: ${frame.url()}`);
+
+        // Debug dump on navigation
+        if (isDebugEnabled() && frame === page.mainFrame()) {
+          debugDump(page, "nav", url.split("/").pop()?.slice(0, 30) || "page");
+        }
+
         if (url.includes(cfParam)) {
           logger("Cloudflare challenge detected");
           logToMetadataFile(`Cloudflare challenge detected`);

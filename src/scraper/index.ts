@@ -110,13 +110,35 @@ async function scrapeAccount(
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
 ) {
   logger(`scraping`);
+  const timeoutMs = Number(process.env.SCRAPER_TIMEOUT_SECONDS || 120) * 1000;
 
   const scraperStart = performance.now();
-  const result = await getAccountTransactions(
+
+  const scrapePromise = getAccountTransactions(
     account,
     scraperOptions,
     (cid, step) => setStatusMessage(`[${cid}] ${step}`),
   );
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`Hard timeout ${timeoutMs / 1000}s for ${account.companyId}`)),
+      timeoutMs,
+    ),
+  );
+
+  let result;
+  try {
+    result = await Promise.race([scrapePromise, timeoutPromise]);
+  } catch (e: any) {
+    logger(`timeout/error for ${account.companyId}: ${e.message}`);
+    const { ScraperErrorTypes } = await import("israeli-bank-scrapers/lib/scrapers/errors.js");
+    result = {
+      success: false as const,
+      errorType: ScraperErrorTypes.Generic,
+      errorMessage: String(e.message),
+    };
+  }
 
   const duration = (performance.now() - scraperStart) / 1000;
   logger(`scraping ended, took ${duration.toFixed(1)}s`);

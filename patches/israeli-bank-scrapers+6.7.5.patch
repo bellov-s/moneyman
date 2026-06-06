@@ -1,0 +1,21 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+index 0cd2096..fcb635f 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+@@ -249,6 +249,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+     });
+     await (0, _browser.maskHeadlessUserAgent)(this.page);
+     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++    // Switch to permanent password login form
++    try {
++      await this.page.waitForSelector('#flip', { timeout: 15000 });
++      debug('Clicking #flip to switch to password login');
++      await this.page.click('#flip');
++      await this.page.waitForSelector('#otpLoginPwd', { timeout: 10000 });
++      debug('Password form is now visible');
++    } catch (e) {
++      debug('Could not switch to password form, continuing anyway', e.message);
++    }
+     this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
+     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+     const validateRequest = {
