@@ -41,6 +41,8 @@ USER root
 COPY ./src ./src
 RUN npm run build
 
+RUN mkdir -p /app/debug && chown pptruser:pptruser /app/debug
+
 USER pptruser
 
 CMD ["npm", "run", "start"]

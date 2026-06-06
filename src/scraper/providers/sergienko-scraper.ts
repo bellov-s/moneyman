@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import {
   createScraper,
   CompanyTypes as SCompanyTypes,
@@ -12,6 +13,13 @@ import { normalizeResult } from "../normalize.js";
 import type { ScraperScrapingResult } from "israeli-bank-scrapers";
 
 const logger = createLogger("sergienko-scraper");
+
+const DEBUG_DIR = "/app/debug";
+
+// Ensure debug dir exists
+try {
+  fs.mkdirSync(DEBUG_DIR, { recursive: true });
+} catch {}
 
 // Map old companyId strings to new PascalCase enum
 const companyMap: Record<string, SCompanyTypes> = {
@@ -44,6 +52,26 @@ const HOME_URLS: Record<string, string> = {
   isracard: "https://www.isracard.co.il",
   amex: "https://americanexpress.co.il",
 };
+
+async function dumpDebug(page: any, companyId: string, label: string) {
+  const ts = Date.now();
+  try {
+    await page.screenshot({
+      path: `${DEBUG_DIR}/${companyId}-${label}-${ts}.png`,
+      fullPage: true,
+    });
+    const html = await page.content();
+    fs.writeFileSync(
+      `${DEBUG_DIR}/${companyId}-${label}-${ts}.html`,
+      html,
+      "utf8",
+    );
+    const url = page.url();
+    logger(`[${companyId}] DEBUG ${label}: URL=${url}, saved screenshot+html`);
+  } catch (e) {
+    logger(`[${companyId}] DEBUG ${label}: failed to dump - ${e}`);
+  }
+}
 
 export async function scrapeWithSergienko(
   account: AccountConfig,
@@ -80,17 +108,45 @@ export async function scrapeWithSergienko(
         const homeUrl = HOME_URLS[account.companyId];
         const loginUrl = LOGIN_REDIRECTS[account.companyId];
         if (homeUrl && loginUrl) {
-          logger(`${account.companyId}: setting up route intercept ${homeUrl} -> ${loginUrl}`);
+          logger(
+            `${account.companyId}: setting up route intercept ${homeUrl} -> ${loginUrl}`,
+          );
           await page.route(`${homeUrl}/**`, async (route: any) => {
             const url = route.request().url();
             if (url === homeUrl || url === homeUrl + "/") {
               logger(`${account.companyId}: redirecting home to login`);
-              await route.fulfill({ status: 302, headers: { location: loginUrl } });
+              await route.fulfill({
+                status: 302,
+                headers: { location: loginUrl },
+              });
             } else {
               await route.continue();
             }
           });
+          // Also intercept exact base URL without trailing slash
+          await page.route(homeUrl, async (route: any) => {
+            logger(`${account.companyId}: redirecting exact home to login`);
+            await route.fulfill({
+              status: 302,
+              headers: { location: loginUrl },
+            });
+          });
         }
+
+        // Dump page state after preparePage for debugging
+        // The page starts at about:blank here, real dump happens on error
+        page.on("pageerror", async (err: any) => {
+          logger(`[${account.companyId}] Page error: ${err}`);
+        });
+
+        // Dump debug on any navigation that settles
+        let dumpCount = 0;
+        page.on("load", async () => {
+          dumpCount++;
+          if (dumpCount <= 3) {
+            await dumpDebug(page, account.companyId, `load-${dumpCount}`);
+          }
+        });
       },
     };
 

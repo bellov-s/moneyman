@@ -23,8 +23,10 @@ export async function getAccountTransactions(
   options: ScraperOptions,
   onProgress: (companyId: string, status: string) => void,
 ): Promise<ScraperScrapingResult> {
-  if (shouldUseSergienko(account.companyId)) {
-    logger(`Using sergienko engine for ${account.companyId}`);
+  const useSergienko = shouldUseSergienko(account.companyId);
+  logger(`Routing ${account.companyId}: engine=${useSergienko ? "sergienko" : "old"} (SERGIENKO_COMPANIES=${process.env.SERGIENKO_COMPANIES || "amex,isracard"})`);
+
+  if (useSergienko) {
     return scrapeWithSergienko(
       account,
       options.startDate,
@@ -33,6 +35,5 @@ export async function getAccountTransactions(
     );
   }
 
-  logger(`Using old engine for ${account.companyId}`);
   return scrapeWithOldEngine(account, options, onProgress);
 }
