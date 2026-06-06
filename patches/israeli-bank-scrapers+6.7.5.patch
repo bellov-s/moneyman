@@ -1,33 +1,31 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..1a4d34d 100644
+index 0cd2096..14cbf6f 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,17 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -249,6 +249,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
-+    console.log("STEP 1: navigated to login page");
-+    // Switch to password form
++    console.log("STEP: after navigateTo", this.baseUrl + "/personalarea/Login");
 +    try {
 +      await this.page.waitForSelector('#flip', { timeout: 15000 });
 +      await this.page.click('#flip');
-+      console.log("STEP 2: clicked #flip");
++      console.log("STEP: after #flip click");
 +      await this.page.waitForSelector('#otpLoginPwd', { timeout: 10000 });
-+      console.log("STEP 3: #otpLoginPwd visible");
++      console.log("STEP: #otpLoginPwd visible");
 +    } catch (e) {
-+      console.log("STEP 2/3 FAILED:", e.message);
++      console.log("STEP: #flip or #otpLoginPwd failed:", e.message);
 +    }
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
-@@ -259,8 +270,17 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -259,8 +269,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
        checkLevel: '1',
        companyCode: this.companyCode
      };
-+    console.log("STEP 4: before ValidateIdData");
++    console.log("STEP: before ValidateIdData");
      debug('logging in with validate request');
      const validateResult = await (0, _fetch.fetchPostWithinPage)(this.page, validateUrl, validateRequest);
-+    console.log("STEP 5: after ValidateIdData");
 +    console.log("========== VALIDATE RESULT ==========");
 +    console.log(JSON.stringify({
 +      headerStatus: validateResult?.Header?.Status,
@@ -38,14 +36,13 @@ index 0cd2096..1a4d34d 100644
      if (!validateResult || !validateResult.Header || validateResult.Header.Status !== '1' || !validateResult.ValidateIdDataBean) {
        throw new Error('unknown error during login');
      }
-@@ -279,8 +299,21 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -279,8 +297,20 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
          countryCode: COUNTRY_CODE,
          idType: ID_TYPE
        };
-+      console.log("STEP 6: before performLogonI");
++      console.log("STEP: before performLogonI");
        debug('user login started');
        const loginResult = await (0, _fetch.fetchPostWithinPage)(this.page, loginUrl, request);
-+      console.log("STEP 7: after performLogonI");
 +      console.log("========== LOGIN RESULT ==========");
 +      console.log(JSON.stringify({
 +        status: loginResult?.status,
@@ -54,7 +51,7 @@ index 0cd2096..1a4d34d 100644
 +        error: loginResult?.error
 +      }, null, 2));
 +      console.log(JSON.stringify(loginResult, (k, v) => {
-+        if (["Sisma", "password", "MisparZihuy", "cardSuffix", "KodMishtamesh"].includes(k)) return "***";
++        if (["Sisma","password","MisparZihuy","cardSuffix","KodMishtamesh"].includes(k)) return "***";
 +        return v;
 +      }, 2));
        debug(`user login with status '${loginResult?.status}'`, loginResult);
