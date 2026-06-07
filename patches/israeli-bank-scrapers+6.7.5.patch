@@ -1,12 +1,37 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..3bc8ba3 100644
+index 0cd2096..5880009 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -249,6 +249,21 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -248,7 +248,45 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+       }
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
-     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
-+    console.log("BIA STEP A: after navigateTo");
+-    await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++    // Amex-specific: use domcontentloaded to avoid anti-bot timeout on full load
++    const _isAmex = this.baseUrl.includes('americanexpress');
++    if (_isAmex) {
++      console.log("BIA STEP A: Amex navigating with domcontentloaded");
++      await this.page.goto(`${this.baseUrl}/personalarea/Login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
++      console.log("BIA STEP A2: Amex domcontentloaded done, waiting for #flip or #otpLoginPwd");
++      try {
++        await Promise.race([
++          this.page.waitForSelector('#flip', { timeout: 45000 }),
++          this.page.waitForSelector('#otpLoginPwd', { timeout: 45000 }),
++        ]);
++        console.log("BIA STEP A3: Amex login form element found");
++      } catch (e) {
++        console.log("BIA STEP A3 TIMEOUT: Amex form not found after 45s", e && e.message);
++        try {
++          const _fs = require('fs');
++          try { _fs.mkdirSync('/app/debug', { recursive: true }); } catch {}
++          await this.page.screenshot({ path: '/app/debug/amex-timeout-' + Date.now() + '.png', fullPage: true }).catch(() => {});
++          _fs.writeFileSync('/app/debug/amex-timeout-' + Date.now() + '.html', await this.page.content().catch(() => ''), 'utf8');
++        } catch {}
++      }
++    } else {
++      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++      console.log("BIA STEP A: after navigateTo (non-Amex)");
++    }
 +    console.log("BIA STEP B: before waitForSelector #flip");
 +    try {
 +      await this.page.waitForSelector('#flip', { timeout: 15000 });
@@ -24,7 +49,7 @@ index 0cd2096..3bc8ba3 100644
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
-@@ -259,8 +274,17 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -259,8 +297,17 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
        checkLevel: '1',
        companyCode: this.companyCode
      };
@@ -42,7 +67,7 @@ index 0cd2096..3bc8ba3 100644
      if (!validateResult || !validateResult.Header || validateResult.Header.Status !== '1' || !validateResult.ValidateIdDataBean) {
        throw new Error('unknown error during login');
      }
-@@ -279,8 +303,15 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -279,8 +326,15 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
          countryCode: COUNTRY_CODE,
          idType: ID_TYPE
        };
