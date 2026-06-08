@@ -1,84 +1,81 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 0cd2096..2973c8b 100644
+index 0cd2096..42b54c6 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -248,7 +248,68 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -248,7 +248,54 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
        }
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
 -    await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +    const _isAmex = this.baseUrl.includes('americanexpress');
++    const _amexHeaders = _isAmex ? {
++      'Accept': 'application/json, text/plain, */*',
++      'Content-Type': 'application/json;charset=UTF-8',
++      'Referer': 'https://he.americanexpress.co.il/personalarea/Login',
++      'Origin': 'https://he.americanexpress.co.il',
++      'X-Requested-With': 'XMLHttpRequest'
++    } : {};
 +    if (_isAmex) {
 +      console.log("BIA AMEX: navigating with domcontentloaded");
 +      await this.page.goto(`${this.baseUrl}/personalarea/Login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-+      console.log("BIA AMEX: domcontentloaded fired, url=" + this.page.url());
-+      // Poll every 5s: dump state, check if page progresses beyond anti-bot stub
++      console.log("BIA AMEX: domcontentloaded done, polling for #flip");
 +      let _found = false;
 +      for (let _i = 0; _i < 9; _i++) {
 +        const _state = await this.page.evaluate(() => ({
 +          readyState: document.readyState,
-+          url: location.href,
-+          title: document.title,
 +          bodyLen: document.body ? document.body.innerHTML.length : 0,
 +          hasFlip: !!document.querySelector('#flip'),
 +          hasPwd: !!document.querySelector('#otpLoginPwd'),
 +          scriptCount: document.querySelectorAll('script[src]').length,
-+          scripts: Array.from(document.querySelectorAll('script[src]')).map(s => s.src).slice(0, 10),
 +        }));
 +        console.log("BIA AMEX POLL " + _i + ":", JSON.stringify(_state));
-+        if (_state.hasFlip || _state.hasPwd) {
-+          _found = true;
-+          console.log("BIA AMEX: form element found at poll " + _i);
-+          break;
-+        }
-+        // Dump HTML at poll 0, 2, 4, 8
-+        if (_i === 0 || _i === 2 || _i === 4 || _i === 8) {
++        if (_state.hasFlip || _state.hasPwd) { _found = true; break; }
++        if (_i === 0 || _i === 4 || _i === 8) {
 +          try {
-+            const _fs = require('fs');
-+            try { _fs.mkdirSync('/app/debug', { recursive: true }); } catch {}
++            const _dfs = require('fs');
++            try { _dfs.mkdirSync('/app/debug', { recursive: true }); } catch {}
 +            const _html = await this.page.content().catch(() => '');
-+            if (_html) _fs.writeFileSync('/app/debug/amex-poll-' + _i + '.html', _html, 'utf8');
-+            await this.page.screenshot({ path: '/app/debug/amex-poll-' + _i + '.png', fullPage: true }).catch(() => {});
++            if (_html) _dfs.writeFileSync('/app/debug/amex-poll-' + _i + '.html', _html, 'utf8');
 +          } catch {}
 +        }
 +        await new Promise(r => setTimeout(r, 5000));
 +      }
-+      if (!_found) {
-+        console.log("BIA AMEX: TIMEOUT - form never appeared after 45s polling");
-+        try {
-+          const _fs = require('fs');
-+          try { _fs.mkdirSync('/app/debug', { recursive: true }); } catch {}
-+          const _html = await this.page.content().catch(() => '');
-+          if (_html) _fs.writeFileSync('/app/debug/amex-final-timeout.html', _html, 'utf8');
-+          await this.page.screenshot({ path: '/app/debug/amex-final-timeout.png', fullPage: true }).catch(() => {});
-+        } catch {}
-+      }
++      if (!_found) console.log("BIA AMEX: TIMEOUT - form never appeared");
 +    } else {
 +      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
 +      console.log("BIA STEP A: after navigateTo (Isracard)");
 +    }
-+    console.log("BIA STEP B: before waitForSelector #flip");
++    // Click #flip to switch to password form
 +    try {
 +      await this.page.waitForSelector('#flip', { timeout: 15000 });
-+      console.log("BIA STEP C: after waitForSelector #flip");
 +      await this.page.click('#flip');
-+      console.log("BIA STEP E: after click #flip");
++      console.log("BIA: clicked #flip");
 +      await this.page.waitForSelector('#otpLoginPwd', { timeout: 10000 });
-+      console.log("BIA STEP G: after waitForSelector #otpLoginPwd");
++      console.log("BIA: #otpLoginPwd visible");
 +    } catch (e) {
-+      console.log("BIA FLIP ERROR", e && (e.message || e));
++      console.log("BIA FLIP ERROR:", e && (e.message || e));
 +    }
-+    console.log("BIA STEP H: continuing to ValidateIdData");
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
-@@ -259,8 +320,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -259,8 +306,26 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
        checkLevel: '1',
        companyCode: this.companyCode
      };
-+    console.log("BIA STEP I: before ValidateIdData");
++    console.log("BIA: before ValidateIdData, amex=" + _isAmex);
      debug('logging in with validate request');
-     const validateResult = await (0, _fetch.fetchPostWithinPage)(this.page, validateUrl, validateRequest);
+-    const validateResult = await (0, _fetch.fetchPostWithinPage)(this.page, validateUrl, validateRequest);
++    let validateResult;
++    try {
++      validateResult = await (0, _fetch.fetchPostWithinPage)(this.page, validateUrl, validateRequest, _amexHeaders);
++    } catch (e) {
++      const msg = e && e.message || '';
++      if (msg.includes('<!DOCTYPE') || msg.includes('Cloudflare') || msg.includes('Attention Required')) {
++        console.log("BIA CLOUDFLARE BLOCKED on ValidateIdData:", msg.slice(0, 500));
++        throw new Error('CloudflareBlocked: ValidateIdData request was blocked by Cloudflare');
++      }
++      throw e;
++    }
 +    console.log("========== VALIDATE RESULT ==========");
 +    console.log(JSON.stringify({
 +      headerStatus: validateResult?.Header?.Status,
@@ -89,13 +86,24 @@ index 0cd2096..2973c8b 100644
      if (!validateResult || !validateResult.Header || validateResult.Header.Status !== '1' || !validateResult.ValidateIdDataBean) {
        throw new Error('unknown error during login');
      }
-@@ -279,8 +348,14 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -279,8 +344,24 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
          countryCode: COUNTRY_CODE,
          idType: ID_TYPE
        };
-+      console.log("BIA STEP K: before performLogonI");
++      console.log("BIA: before performLogonI, amex=" + _isAmex);
        debug('user login started');
-       const loginResult = await (0, _fetch.fetchPostWithinPage)(this.page, loginUrl, request);
+-      const loginResult = await (0, _fetch.fetchPostWithinPage)(this.page, loginUrl, request);
++      let loginResult;
++      try {
++        loginResult = await (0, _fetch.fetchPostWithinPage)(this.page, loginUrl, request, _amexHeaders);
++      } catch (e) {
++        const msg = e && e.message || '';
++        if (msg.includes('<!DOCTYPE') || msg.includes('Cloudflare') || msg.includes('Attention Required')) {
++          console.log("BIA CLOUDFLARE BLOCKED on performLogonI:", msg.slice(0, 500));
++          throw new Error('CloudflareBlocked: performLogonI request was blocked by Cloudflare');
++        }
++        throw e;
++      }
 +      console.log("========== LOGIN RESULT ==========");
 +      console.log(JSON.stringify(loginResult, (k, v) => {
 +        if (["Sisma","password","MisparZihuy","cardSuffix","KodMishtamesh"].includes(k)) return "***";
